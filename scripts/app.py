@@ -177,6 +177,46 @@ def api_historical(ticker):
         return jsonify(data)
     return jsonify({'error': 'Could not fetch historical data'}), 404
 
+def search_stocks(query):
+    """Search for stocks by company name or ticker using Yahoo Finance search API."""
+    try:
+        if not query or len(query) < 1:
+            return []
+        
+        url = f"https://query1.finance.yahoo.com/v1/finance/search?q={query}"
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+        }
+        response = requests.get(url, headers=headers, timeout=10)
+        if response.status_code == 200:
+            data = response.json()
+            if 'quotes' in data:
+                results = []
+                for quote in data['quotes'][:10]:  # Limit to 10 results
+                    if quote.get('quoteType') in ['EQUITY', 'ETF', 'INDEX']:
+                        results.append({
+                            'symbol': quote.get('symbol', ''),
+                            'shortname': quote.get('shortname', ''),
+                            'longname': quote.get('longname', ''),
+                            'exchange': quote.get('exchange', '')
+                        })
+                return results
+    except Exception as e:
+        print(f"Error searching stocks: {e}")
+        import traceback
+        traceback.print_exc()
+    return []
+
+@app.route('/api/search')
+def api_search():
+    """API endpoint for stock search/autocomplete."""
+    query = request.args.get('q', '').strip()
+    if not query:
+        return jsonify([])
+    
+    results = search_stocks(query)
+    return jsonify(results)
+
 if __name__ == '__main__':
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     
